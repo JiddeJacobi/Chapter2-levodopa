@@ -1,0 +1,418 @@
+```{r load data}
+setwd('/media/jidde/Western Dig/analysis_backup_18_08_2021/levodopa project')
+data <- readRDS("data_levodopa_29_01_21.rds")
+```
+
+
+Load Libraries
+```{r analysis}
+library(ggplot2)
+library(dplyr)
+library(lme4)
+library(car)
+library(lmerTest)
+library(visreg)
+```
+
+
+# Statistic analysis
+
+Write Cohens d function
+```{r cohensDfunction}
+lme.dscore<-function(mod,data,type){
+  if (type=="lme4") {
+    mod1<-lmerTest::lmer(mod,data=data)
+    eff<-cbind(summary(mod1)$coefficients[,4],summary(mod1)$coefficients[,3])
+  }
+ 
+  if (type=="nlme") {
+    eff=cbind(summary(mod)$tTable[,4],summary(mod)$fixDF$terms)
+  }
+ 
+  colnames(eff)<-c("t","df")
+  eff<-as.data.frame(eff)
+  eff$d<-(2*eff$t)/sqrt(eff$df)
+  eff<-eff[-1,]
+  return(eff)
+}
+```
+
+# Models for VAI
+
+Model with Gender as fixed effect & random intercepts for subjects
+```{r}
+m1 <- lmer(VAI ~ Gender + (1|participant.id), data = data)
+summary(m1)
+```
+
+
+Model with group and Gender as fixed & random intercepts for subjects
+```{r}
+summary(m2 <- lmer(VAI ~ group + Gender + (1|participant.id), data = data))
+anova(m1, m2)
+anova(m2)
+```
+No improvement.
+
+Add language as fixed effect
+```{r}
+summary(m3 <- lmer(VAI ~ group + Gender + lang + (1|participant.id), data = data))
+anova(m2, m3)
+```
+No improvement.
+
+Add time of day as fixed effect.
+```{r}
+summary(m4 <- lmer(VAI ~ group + Gender + time + (1|participant.id), data = data))
+anova(m2, m4)
+```
+No improvement.
+
+Add day as fixed effect.
+```{r}
+summary(m5 <- lmer(VAI ~ group + Gender + day + (1|participant.id), data = data))
+anova(m2, m5)
+anova(m5)
+```
+No improvement.
+
+Add age as fixed effect.
+```{r}
+summary(m6 <- lmer(VAI ~ group + Gender + age + (1|participant.id), data = data))
+anova(m2, m6)
+```
+No improvement.
+
+## Interactions
+Interaction between group and Gender.
+```{r}
+summary(m7 <- lmer(VAI ~ group*Gender + (1|participant.id), data = data))
+anova(m7, m2)
+```
+Sig. improv, but not sign. when fitted with REML.
+
+Interaction between group and language.
+```{r}
+summary(m8 <- lmer(VAI ~ group*lang + Gender + (1|participant.id), data = data))
+anova(m8, m2)
+```
+No improvement. 
+
+Interaction between group and time.
+```{r}
+summary(m9 <- lmer(VAI ~ group*time + Gender + (1|participant.id), data = data))
+anova(m9, m2)
+```
+No improvement.
+
+Interaction between language and time.
+```{r}
+summary(m10 <- lmer(VAI ~ group + Gender + lang*time + (1|participant.id), data = data))
+anova(m2, m10)
+```
+No improvement.
+
+Interaction between Gender and lang.
+```{r}
+summary(m11 <- lmer(VAI ~ group + Gender*lang + (1|participant.id), data = data))
+anova(m2, m11)
+```
+No improvement.
+
+## Random slopes
+
+```{r}
+m3_randslo_group <- lmer(VAI ~ group + Gender + (1+session|participant.id), data = data,  control = lmerControl(optimizer = "bobyqa")) # fails to converge
+m3_randslo_day <- lmer(VAI ~ group + Gender + (1+day|participant.id), data = data,  control = lmerControl(optimizer = "bobyqa")) # boundary (singular) fit
+```
+Fails to converge.
+
+
+# Check assumptions final model
+```{r}
+lme.dscore(m2, data, type="lme4")
+
+acf(resid(m2)) # autocorrelation seems ok
+
+qqnorm(resid(m2)) 
+qqline(resid(m2)) # looks OKish
+
+plot(fitted(m2), resid(m2)) 
+```
+
+
+
+
+### MODELS FOR VAI PD ONLY 
+Model with only PD, state as fixed effect & random intercepts for subjects
+```{r}
+summary(m1PD <- lmer(VAI ~ state + (1|participant.id), data = data[data$group=="PD",]))
+```
+
+Model with only PD, session as fixed effect & random intercepts for subjects
+```{r}
+summary(m2PD <- lmer(VAI ~ session + (1|participant.id), data = data[data$group=="PD",]))
+anova(m1PD, m2PD)
+anova(m2PD)
+```
+Stick with state.
+
+
+Model with state and Gender as fixed effect & random intercepts for subjects
+```{r}
+summary(m3PD <- lmer(VAI ~ state + Gender + (1|participant.id), data = data[data$group=="PD",]))
+anova(m1PD, m3PD)
+anova(m3PD)
+```
+Model 3PD has sign. lower AIC
+
+Now we add language to the model.
+```{r}
+summary(m4PD <- lmer(VAI ~ state + Gender + lang + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m4PD)
+```
+No improvement.
+
+Add day to the model.
+```{r}
+summary(m5PD <- lmer(VAI ~ state + Gender + day + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m5PD)
+anova(m5PD)
+```
+No improvement.
+
+Add time of day to the model.
+```{r}
+summary(m6PD <- lmer(VAI ~ state + Gender + time + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m6PD)
+```
+No improvement.
+
+Add levodopa
+```{r}
+summary(m7PD <- lmer(VAI ~ state + Gender + levodopa + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD,m7PD)
+```
+No improvement.
+
+Add diagnosis
+```{r}
+summary(m8PD <- lmer(VAI ~ state + Gender + diagnosis + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD,m8PD)
+summary(m8PD)
+```
+Sign improvement in model comparison, but no sign effect of predictor when fitted with REML (p=0.09).
+
+Add age
+```{r}
+summary(m9PD <- lmer(VAI ~ state + Gender + age + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD,m9PD)
+```
+No improvement.
+
+## Interactions
+
+Add state*Gender
+```{r}
+summary(m10PD <- lmer(VAI ~ state*Gender + (1|participant.id), data = data[data$group=="PD",]))
+anova(m10PD, m3PD)
+```
+No improvement.
+
+Add state*language
+```{r}
+summary(m11PD <- lmer(VAI ~ state*lang + Gender + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m11PD)
+```
+No improvement.
+
+Add state*day interaction
+```{r}
+summary(m12PD <- lmer(VAI ~ state*day + Gender + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m12PD)
+anova(m12PD)
+```
+No added value.
+
+
+Add lang*time interaction
+```{r}
+summary(m13PD <- lmer(VAI ~ state + Gender + lang*time + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m13PD)
+```
+No improvement.
+
+Add gender*language interaction
+```{r}
+summary(m14PD <- lmer(VAI ~ state + Gender*lang + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m14PD)
+summary(m14PD)
+```
+Significant, but not reliable since there was only one female in the Dutch sample.
+
+Add age*language interaction
+```{r}
+m15PD <- lmer(VAI ~ state + Gender + lang*age + (1|participant.id), data = data[data$group=="PD",])
+anova(m3PD, m15PD)
+```
+No improvement.
+
+
+Add state*time of day interaction
+```{r}
+summary(m16PD <- lmer(VAI ~ state*time + Gender + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m16PD)
+```
+No improvement.
+
+Add language*day interaction
+```{r}
+summary(m17PD <- lmer(VAI ~ state*day + Gender + (1|participant.id), data = data[data$group=="PD",]))
+anova(m3PD, m17PD)
+anova(m17PD)
+```
+
+
+## Random slopes
+
+```{r}
+m3PDrandslo_state <- lmer(VAI ~ state + Gender + (1+state|participant.id), data = data[data$group=="PD",]) 
+m3PDrandslo_time <- lmer(VAI ~ state + Gender  + (1+time|participant.id), data = data[data$group=="PD",])
+m3PDrandslo_session <- lmer(VAI ~ state + Gender  + (1+session|participant.id), data = data[data$group=="PD",]) # singular fit
+
+anova(m3PD, m3PDrandslo_state)
+anova(m3PD, m3PDrandslo_time)
+
+```
+No improvements.
+
+# Check assumptions final model
+```{r}
+lme.dscore(m3PD, data, type="lme4")
+
+acf(resid(m3PD)) # autocorrelation seems ok
+
+qqnorm(resid(m3PD)) 
+qqline(resid(m3PD)) # looks OK
+
+plot(fitted(m3PD), resid(m3PD)) # looks OKish
+```
+
+### Fatigue
+```{r}
+m1PDf <- lmer(VAI ~ state + (1|participant.id), data = data[data$group=="PD" & data$lang == "Slovenian",])
+```
+
+
+```{r}
+m2PDf <- lmer(VAI ~ state + fatigue + (1|participant.id), data = data[data$group=="PD" & data$lang == "Slovenian",])
+anova(m1PDf, m2PDf)
+```
+
+
+### plots
+```{r}
+
+ggplot(data=data, aes(x=participant.id, y=VSA, fill=group)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) +   #stat_summary(aes(label=group), fun.y=mean, geom="text", size=2) + 
+  #facet_wrap(Gender~lang, nrow = 1, scales = "free") + 
+  facet_wrap(Gender~lang, scales = "free")+
+  labs(x = "Participant") +
+  theme_bw()
+
+ggplot(data=data, aes(x=participant.id, y=VAI, fill=group)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) +   #stat_summary(aes(label=group), fun.y=mean, geom="text", size=2) + 
+  #facet_wrap(Gender~lang, nrow = 1, scales = "free") + 
+  facet_wrap(Gender~lang, scales = "free")+
+  labs(x = "Participant") +
+  theme_bw()
+
+
+ggplot(data=data[data$group=="PD",], aes(x=participant.id, y=VSA, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + labs(x = "participant") 
+
+
+ggplot(data=data[data$group=="PD",], aes(x=participant.id, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 1.3)) + labs(x = "participant") + theme_bw()
+
+
+
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL02",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 0.95)) + labs(x = "Recording day")
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL02",], aes(x=day, y=VSA, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + labs(x = "Recording day", y = "VSA")
+
+
+ggplot(data, aes(x=group, y=VSA, fill=Gender)) + geom_boxplot() + labs(y = "VSA")  +
+  theme_bw()
+
+```
+
+```{r plots per participant}
+
+### per participant ###
+par(mfrow=c(4,2))
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL01",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 1.3)) + labs(x = "Recording day")
+
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL03",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 1.3)) + labs(x = "Recording day")
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL04",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 1.3)) + labs(x = "Recording day")
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL05",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 1.3)) + labs(x = "Recording day")
+
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL06",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 1.3)) + labs(x = "Recording day")
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL07",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 1.3)) + labs(x = "Recording day")
+```
+
+Figures to report:
+```{r}
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL02",], aes(x=day, y=VAI, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(0.8, 0.925)) + labs(x = "Recording day") + theme_bw()
+
+
+#example of individual variation
+ggplot(data=data[data$participant.id=="NL02",], aes(x=day, y=VSA, fill=session)) +
+  geom_bar(stat="summary", fun.y=mean, position='dodge') +
+   stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + coord_cartesian(ylim = c(100000, 225000)) + labs(x = "Recording day") + theme_bw()
+
+```
+
+# Session info
+```{r}
+sessionInfo()
+```
+
