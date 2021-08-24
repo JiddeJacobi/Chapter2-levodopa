@@ -15,6 +15,11 @@ library(lmerTest)
 library(visreg)
 ```
 
+Data wrangling
+```{r}
+data$Gender <- as.factor(data$Gender)
+data$group[data$group=="CTRL"] <- "Typical"
+```
 
 # Statistic analysis
 
@@ -61,6 +66,12 @@ anova(m1, m2)
 anova(m2)
 ```
 Model 2 has sign. lower AIC
+
+# Plot model
+```{r}
+visreg(m2, "Gender", by="group", ylab = "VSA", xlab = "gender", gg=TRUE) + theme_bw()
+```
+
 
 Add language as fixed effect
 ```{r}

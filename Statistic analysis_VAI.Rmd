@@ -14,6 +14,12 @@ library(lmerTest)
 library(visreg)
 ```
 
+Data wrangling
+```{r}
+data$Gender <- as.factor(data$Gender)
+data$group[data$group=="CTRL"] <- "Typical"
+```
+
 
 # Statistic analysis
 
@@ -140,6 +146,10 @@ qqline(resid(m2)) # looks OKish
 plot(fitted(m2), resid(m2)) 
 ```
 
+# Plot model
+```{r}
+visreg(m2, "Gender", by="group", ylab = "VSA", xlab = "gender", gg=TRUE) + theme_bw()
+```
 
 
 
@@ -296,6 +306,9 @@ qqnorm(resid(m3PD))
 qqline(resid(m3PD)) # looks OK
 
 plot(fitted(m3PD), resid(m3PD)) # looks OKish
+
+data$state <- as.factor(data$state)
+visreg(m3PD, "VAI", "state")
 ```
 
 ### Fatigue
