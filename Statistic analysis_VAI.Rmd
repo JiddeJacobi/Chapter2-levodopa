@@ -1,5 +1,5 @@
 ```{r load data}
-setwd('/media/jidde/Western Dig/analysis_backup_18_08_2021/levodopa project')
+setwd('E:/analysis_backup_18_08_2021/levodopa project')
 data <- readRDS("data_levodopa_29_01_21.rds")
 ```
 
@@ -148,7 +148,7 @@ plot(fitted(m2), resid(m2))
 
 # Plot model
 ```{r}
-visreg(m2, "Gender", by="group", ylab = "VSA", xlab = "gender", gg=TRUE) + theme_bw()
+visreg(m2, "Gender", by="group", ylab = "VAI", xlab = "gender", gg=TRUE) + theme_bw()
 ```
 
 
@@ -331,8 +331,11 @@ ggplot(data=data, aes(x=participant.id, y=VSA, fill=group)) +
    stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) +   #stat_summary(aes(label=group), fun.y=mean, geom="text", size=2) + 
   #facet_wrap(Gender~lang, nrow = 1, scales = "free") + 
   facet_wrap(Gender~lang, scales = "free")+
-  labs(x = "Participant") +
+  labs(x = "Participant") + ggsci::scale_fill_npg() +
   theme_bw()
+
+
+
 
 ggplot(data=data, aes(x=participant.id, y=VAI, fill=group)) +
   geom_bar(stat="summary", fun.y=mean, position='dodge') +
@@ -366,8 +369,8 @@ ggplot(data=data[data$participant.id=="NL02",], aes(x=day, y=VSA, fill=session))
    stat_summary(fun.data = "mean_se", geom = 'errorbar', position=position_dodge(.9), width = 0.2) + scale_fill_manual(values = c("#ff0000","#008500", "#66cc00","#005483","#6fb5e9")) + labs(x = "Recording day", y = "VSA")
 
 
-ggplot(data, aes(x=group, y=VSA, fill=Gender)) + geom_boxplot() + labs(y = "VSA")  +
-  theme_bw()
+ggplot(data, aes(x=group, y=VAI, fill=Gender)) + geom_boxplot() + labs(y = "VAI")  +
+  theme_bw() +  ggsci::scale_fill_npg()
 
 ```
 
